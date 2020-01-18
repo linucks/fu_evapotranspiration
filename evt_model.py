@@ -30,7 +30,7 @@ http://www.fao.org/3/X0490E/x0490e0k.htm
 import logging
 import math
 
-from scipy.optimize import root_scalar
+import scipy.optimize
 
 # https://www.ohio.edu/mechanical/thermo/property_tables/air/air_cp_cv.html at 300K/26.85C
 HEAT_CAPACITY_OF_AIR =  1003 # J kg-1 C-1
@@ -92,7 +92,7 @@ def calc_temp_surface(*, # Force all keyword arguments
     xa = temp_air - limit
     xb = temp_air + limit
     args = (net_radiation,)
-    result = root_scalar(calc_energy_balance, bracket=[xa, xb], args=args)
+    result = scipy.optimize.root_scalar(calc_energy_balance, bracket=[xa, xb], args=args)
 
     assert result.converged, "Error! Could not determine the result."
     temp_surface = result.root

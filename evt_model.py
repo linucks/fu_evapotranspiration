@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+Relevant text about the model from the paper:
+
 The MATLAB (2016) model executes an iterative process to simultaneously solve (Eqs. 4–7), processing the net PAR flux density,
 the sur- face and aerodynamic resistances as outlined above (Eqs. 8–10).
 
@@ -38,7 +40,7 @@ HEAT_CAPACITY_OF_AIR_GRAMS =  1.003 # J g-1 C-1
 LATENT_HEAT_WATER = 2264705 # J Kg-1
 LATENT_HEAT_WATER_GRAMS = 2264.705 # J g-1
 
-# Valye from paper
+# Value from paper
 PSYCHOMETRIC_CONSTANT = 65.0 # Pa/K
 
 IDEAL_GAS_CONSTANT = 8.3145 # J mol-1 K-1
@@ -47,7 +49,6 @@ MOLAR_MASS_H2O = 18.01528e-3 # g mol-1
 MOLAR_MASS_H2O_GRAMS = 18.01528 # g mol-1
 
 ZERO_DEGREES_IN_KELVIN = 273.15
-
 
 PLANK_CONSTANT = 6.626e-34
 SPEED_OF_LIGHT =  2.99e8 # m s-1
@@ -64,32 +65,36 @@ def calc_temp_surface(*, # Force all keyword arguments
                       vapour_resistance,
                       reflection_coefficient,
                       cultivation_area_coverage):
-    logger.info("""Calculating surface temperature with:
-    Air temperature: {}
-    PPFD: {}
-    Relative Humidity {}
-    LAI: {}
-    Vapour resistance: {}
-    Reflection, coefficient: {}
-    Cultivation Area Coverage: {}
-""".format(temp_air, ppfd, relative_humidity, lai, vapour_resistance, reflection_coefficient, cultivation_area_coverage))
+    """Determine the root of the model equations to calculate the surface temperature.
+
+    With the surface temperature determined, the various model properities can be calcualted.
+    """
+
+    logger.info(f"""Calculating surface temperature with:
+    Air temperature: {temp_air}
+    PPFD: {ppfd}
+    Relative Humidity: {relative_humidity}
+    LAI: {lai}
+    Vapour resistance: {vapour_resistance}
+    Reflection, coefficient: {reflection_coefficient}
+    Cultivation Area Coverage: {cultivation_area_coverage}""")
 
     def calc_energy_balance(temp_surface, net_radiation):
         sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
         latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
         energy_balance = net_radiation - sensible_heat_exchange - latent_heat_flux
-        logger.debug("TEMP, SENSIBLE, LATENT, NET, residual: %s %s %s %s %s",temp_surface, sensible_heat_exchange, latent_heat_flux, net_radiation, energy_balance)
+        logger.debug(f"TEMP, SENSIBLE, LATENT, NET, residual: {temp_surface} {sensible_heat_exchange} {latent_heat_flux} {net_radiation} {energy_balance}")
         return energy_balance
 
     net_radiation = calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage)
 
-    limit = 10.0
+    limit = 10.0 # This sets the max/min values within which temp_surface can be found.
     xa = temp_air - limit
     xb = temp_air + limit
     args = (net_radiation,)
     result = root_scalar(calc_energy_balance, bracket=[xa, xb], args=args)
 
-    assert result.converged
+    assert result.converged, "Error! Could not determine the result."
     temp_surface = result.root
     return temp_surface
 
@@ -208,16 +213,14 @@ def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, 
     use_concentration = True
     if use_concentration:
         vapour_concentration_air = calc_vapour_concentration_air(temp_air, relative_humidity)
-        logger.debug('vapour concentration air: {}'.format(vapour_concentration_air))
+        logger.debug(f'vapour concentration air: {vapour_concentration_air}')
         vapour_concentration_surface = calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentration_air)
-        logger.debug('vapour concentration surface: {}'.format(vapour_concentration_surface))
-        print("DIFF ",vapour_concentration_surface - vapour_concentration_air)
+        logger.debug(f'vapour concentration surface: {vapour_concentration_surface}')
     else:
         vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
-        logger.debug('vapour pressure air: {}'.format(vapour_pressure_air))
+        logger.debug(f'vapour pressure air: {vapour_pressure_air}')
         vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
-        logger.debug('vapour pressure surface: {}'.format(vapour_pressure_surface))
-        print("DIFF ",vapour_pressure_surface - vapour_pressure_air)
+        logger.debug(f'vapour pressure surface: {vapour_pressure_surface}')
 
     stomatal_resistance = calc_stomatal_resistance(ppfd)
 
@@ -412,4 +415,10 @@ if __name__ == '__main__':
                                      reflection_coefficient=reflection_coefficient,
                                      cultivation_area_coverage=cultivation_area_coverage)
 
-    logger.info("Calculated surface temperature of: {}".format(temp_surface))
+    sensible_heat_exchange = calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance)
+    latent_heat_flux = calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance)
+
+    logger.info(f"""### End of calcualtion
+Calculated surface temperature of: {temp_surface}
+The sensible heat exchange is:     {sensible_heat_exchange}
+The latent heat flux is:           {latent_heat_flux}""")

@@ -191,7 +191,7 @@ def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
     J g-1 * T * m-1 s
     """
     #return lai * HEAT_CAPACITY_OF_AIR_GRAMS * ((temp_surface - temp_air) / vapour_resistance)
-    return lai * HEAT_CAPACITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
+    return lai * HEAT_CAPACITY_OF_AIR * AIR_DENSITY * ((temp_surface - temp_air) / vapour_resistance)
 
 
 def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance):
@@ -210,25 +210,13 @@ def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, 
     J g-1 * g m-3 / s m-1
     J m-2 s-1
     """
-    use_concentration = True
-    if use_concentration:
-        vapour_concentration_air = calc_vapour_concentration_air(temp_air, relative_humidity)
-        logger.debug(f'vapour concentration air: {vapour_concentration_air}')
-        vapour_concentration_surface = calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentration_air)
-        logger.debug(f'vapour concentration surface: {vapour_concentration_surface}')
-    else:
-        vapour_pressure_air = calc_vapour_pressure_air(temp_air, relative_humidity)
-        logger.debug(f'vapour pressure air: {vapour_pressure_air}')
-        vapour_pressure_surface = calc_vapour_pressure_surface(temp_air, temp_surface, vapour_pressure_air)
-        logger.debug(f'vapour pressure surface: {vapour_pressure_surface}')
 
+    vapour_concentration_air = calc_vapour_concentration_air(temp_air, relative_humidity)
+    logger.debug(f'vapour concentration air: {vapour_concentration_air}')
+    vapour_concentration_surface = calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentration_air)
+    logger.debug(f'vapour concentration surface: {vapour_concentration_surface}')
     stomatal_resistance = calc_stomatal_resistance(ppfd)
-
-    if use_concentration:
-        return lai * LATENT_HEAT_WATER * ( (vapour_concentration_surface - vapour_concentration_air) / (stomatal_resistance + vapour_resistance) )
-    else:
-        return lai * LATENT_HEAT_WATER * ( (vapour_pressure_surface - vapour_pressure_air) / (stomatal_resistance + vapour_resistance) )
-
+    return lai * (LATENT_HEAT_WATER/1000)  * ( (vapour_concentration_surface - vapour_concentration_air) / (stomatal_resistance + vapour_resistance) )
 
 def calc_vapour_pressure_air(temp_air, relative_humidity):
     """
@@ -306,9 +294,14 @@ def calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentrati
     ε: vapour concentration (slope of the saturation function curve)
 
     """
+
     epsilon = calc_epsilon(temp_air)
-    return vapour_concentration_air + (HEAT_CAPACITY_OF_AIR / LATENT_HEAT_WATER) * \
-           epsilon * (temp_surface - temp_air)
+    sat_vapour_pressure_air = calc_saturated_pressure_air(temp_air)
+
+    saturated_vapour_concentration_air = vapour_concentration_from_pressure(sat_vapour_pressure_air, temp_air)
+
+    return vapour_concentration_air + ((HEAT_CAPACITY_OF_AIR * AIR_DENSITY) / LATENT_HEAT_WATER) * \
+           epsilon * (temp_surface - temp_air) * 1000
 
 
 def calc_epsilon(temp_air):
@@ -324,7 +317,7 @@ def calc_epsilon(temp_air):
     """
     delta = 0.04145 * math.exp(0.06088 * temp_air)
     #return (delta / PSYCHOMETRIC_CONSTANT) / 1000
-    return (delta / PSYCHOMETRIC_CONSTANT) * 10
+    return (delta / PSYCHOMETRIC_CONSTANT) * 1000
 
 
 def calc_epsilon_FAO(temp_air):

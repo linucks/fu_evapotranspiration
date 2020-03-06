@@ -36,6 +36,8 @@ import scipy.optimize
 HEAT_CAPACITY_OF_AIR =  1003 # J kg-1 C-1
 HEAT_CAPACITY_OF_AIR_GRAMS =  1.003 # J g-1 C-1
 
+DENSITY_OF_AIR = 1.2041     # kg/m3   https://www.thoughtco.com/density-of-air-at-stp-607546
+
 # Need canonical reference: https://en.wikipedia.org/wiki/Latent_heat
 LATENT_HEAT_WATER = 2264705 # J Kg-1
 LATENT_HEAT_WATER_GRAMS = 2264.705 # J g-1
@@ -119,7 +121,6 @@ def calc_net_radiation(ppfd, reflection_coefficient, cultivation_area_coverage):
 def calc_lighting_radiation(ppfd):
     """Values taken from paper
 
-
     # E = hf = hc/w
     photon_energy = AVOGADRO_NUMBER * PLANK_CONSTANT * n * SPEED_OF_LIGHT  / wavelength
 
@@ -127,11 +128,8 @@ def calc_lighting_radiation(ppfd):
 
     Flux density measured in W m-2
 
-
     # https://www.researchgate.net/post/Can_I_convert_PAR_photo_active_radiation_value_of_micro_mole_M2_S_to_Solar_radiation_in_Watt_m22
     # Rule of thumb is 1 W m-2 = 4.57 umol m-2 so 140 ppfd ~= 30.6
-
-
 
 #     import scipy.integrate
 #     ppfd = 140 #umol
@@ -191,7 +189,7 @@ def calc_sensible_heat_exchange(temp_air, temp_surface, lai, vapour_resistance):
     J g-1 * T * m-1 s
     """
     #return lai * HEAT_CAPACITY_OF_AIR_GRAMS * ((temp_surface - temp_air) / vapour_resistance)
-    return lai * HEAT_CAPACITY_OF_AIR * AIR_DENSITY * ((temp_surface - temp_air) / vapour_resistance)
+    return lai * HEAT_CAPACITY_OF_AIR * DENSITY_OF_AIR * ((temp_surface - temp_air) / vapour_resistance)
 
 
 def calc_latent_heat_flux(temp_air, temp_surface, relative_humidity, ppfd, lai, vapour_resistance):
@@ -296,11 +294,11 @@ def calc_vapour_concentration_surface(temp_air, temp_surface, vapour_concentrati
     """
 
     epsilon = calc_epsilon(temp_air)
-    sat_vapour_pressure_air = calc_saturated_pressure_air(temp_air)
+    sat_vapour_pressure_air = calc_saturated_vapour_pressure_air(temp_air)
 
     saturated_vapour_concentration_air = vapour_concentration_from_pressure(sat_vapour_pressure_air, temp_air)
 
-    return vapour_concentration_air + ((HEAT_CAPACITY_OF_AIR * AIR_DENSITY) / LATENT_HEAT_WATER) * \
+    return vapour_concentration_air + ((HEAT_CAPACITY_OF_AIR * DENSITY_OF_AIR) / LATENT_HEAT_WATER) * \
            epsilon * (temp_surface - temp_air) * 1000
 
 
